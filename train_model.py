@@ -2,11 +2,13 @@ import numpy as np
 import matplotlib.pyplot as plt
     
 from tensorflow.keras.models import Sequential, load_model
-from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Dense, Flatten
+from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Dense, Flatten, Dropout
 from keras.utils import to_categorical
 from keras.datasets import mnist
 from keras.models import load_model
 from sklearn.model_selection import train_test_split
+from keras.optimizers import Adam
+from keras.callbacks import EarlyStopping
 import time
 
 def plot_loss_curve(history):
@@ -23,40 +25,46 @@ def plot_loss_curve(history):
     plt.legend(['train', 'test'], loc='upper right')
     plt.show()   
 
-def train_model():
+def train_model(X_train,y_train, X_test, y_test):
 
     model = Sequential([
                 Input(shape=(300,300,3), name='input_layer'),
-                
-                # n_filters * (filter_size + 1) = 32*(9+1) = 320
-                Conv2D(32, kernel_size=3, activation='relu', name='conv_layer1'),
-                #Conv2D(64, kernel_size=3, activation='relu', name='conv_layer1'),
-                
-                #Dropout(0.5)
+
+                Conv2D(32,  kernel_size=3, strides = 1, activation='relu', name='conv_layer1'),
                 MaxPooling2D(pool_size=2),
+                Dropout(0.5),   
+                # Conv2D(16,  kernel_size=3, strides = 2, activation='relu', name='conv_layer2'),
+                # MaxPooling2D(pool_size=2),
+                # Dropout(0.5),   
+
+                # Conv2D(16,  kernel_size=3, activation='relu', name='conv_layer2'),
+                # MaxPooling2D(pool_size=2),
+
                 Flatten(),
-                #Dense(20, activation='softmax', name='output_layer')
+                # Dense(16, activation='relu', name='hidden_layer'),
                 Dense(3, activation='softmax', name='output_layer')
             ])
 
     model.summary()    
     
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    #learning rate 변경해보기
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy']) 
     
-    history = model.fit(X_train, y_train, validation_data=(X_test, y_test), batch_size=10, epochs=3)
-    plot_loss_curve(history.history)
-    print(history.history)
+    history = model.fit(X_train, y_train, validation_data=(X_test, y_test), batch_size=20, epochs=3)
+    # plot_loss_curve(history.history)
     print("train loss=", history.history['loss'][-1])
     print("validation loss=", history.history['val_loss'][-1])    
     
-    model.save('image_classification.model')
+    model.save('model-201612066.model')
     
     return model
+def train_loaded_model(file_name):
+    model = load_model(file_name)
 
 def predict_image_sample(model, X_test, y_test, test_id=-1):
     if test_id < 0:
         from random import randrange
-        test_sample_id = randrange(13500)
+        test_sample_id = randrange(X_test.shape[1])
     else:
         test_sample_id = test_id
         
@@ -66,7 +74,8 @@ def predict_image_sample(model, X_test, y_test, test_id=-1):
     
     test_image = test_image.reshape(1,300,300,3)
 
-    y_actual = y_test[test_sample_id]
+    y_actual = np.argmax(y_test[test_sample_id])
+    
     print("y_actual number=", y_actual)
     
     y_pred = model.predict(test_image)
@@ -81,40 +90,28 @@ def predict_image_sample(model, X_test, y_test, test_id=-1):
     else:
         print("sample %d is correct!" %test_sample_id)
 
-def split_dataset(X, y, test_proportion):
-    ratio = int(X.shape[0]/test_proportion) #should be int
-    X_train = X[ratio:,:]
-    X_test =  X[:ratio,:]
-    y_train = y[ratio:,:]
-    y_test =  y[:ratio,:]
-    return X_train, X_test, y_train, y_test
-
-def unison_shuffled_copies(a, b):
-    assert len(a) == len(b)
-    p = np.random.permutation(len(a))
-    return a[p], b[p]
-
 if __name__ == '__main__':
     start = time.time()
-    loaded_images = np.load('image_vectors.npy')
-    print((time.time()-start))
 
-    loaded_tags = np.load('tags.npy')
-    loaded_tags = to_categorical(loaded_tags)
+    # X_train = np.load('X_train.npy')
+    # X_test = np.load('X_test.npy')
+    # y_train = np.load('y_train.npy')
+    # y_test = np.load('y_test.npy')
 
-    start = time.time()
-    # X_train, X_test, y_train, y_test = train_test_split(loaded_images, loaded_tags, test_size=0.3, random_state=42)
-    X,y = unison_shuffled_copies(loaded_images,loaded_tags)
-    print(X.shape)
-    print(y.shape)
-    print((time.time()-start))
+    # #test용 train data = 10000개, test data = 5000개
+    X_train = np.load('X_train_temp.npy')
+    X_test = np.load('X_test_temp.npy')
+    y_train = np.load('y_train_temp.npy')
+    y_test = np.load('y_test_temp.npy')
+    print(X_test)
+    print("load data time:", (time.time()-start))
     
-    X_train, X_test, y_train, y_test = split_dataset(X,y,30)
-
-    # model = train_model()
-    # predict_image_sample(model, X_test, y_test)
+    model = train_model(X_train,y_train, X_test, y_test)
+    predict_image_sample(model, X_test, y_test)
 
     loaded_model = load_model("image_classification.model")
-    for i in range(500):
-       predict_image_sample(loaded_model, X_test, y_test)
+    print("load model time:", (time.time()-start))
+
+    # for i in range(500):
+    #    predict_image_sample(loaded_model, X_test, y_test)
     
