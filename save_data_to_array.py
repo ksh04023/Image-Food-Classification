@@ -1,9 +1,8 @@
 import os
 import numpy as np
 from cv2 import cv2
-import time
 
-filePath = 'C:\\Users\\ksh04\\Projects\\PythonProjects\\DataScience_Assignment\\FinalProject\\images'
+filePath = '/FinalProject/Image-Food-Classification/images'
 
 image_files = []
 tags = []
@@ -23,11 +22,11 @@ for r,d,f in os.walk(filePath):
         else:
             tags.append(2)
 
-start = time.time()
 images = np.array(image_files)
-end = time.time()
-print((end-start)/1000/60)
 tags = np.array(tags)
 
-np.save('image_vectors',images)
-np.save('tags',tags)
+X_train, X_test, y_train, y_test = train_test_split(images, tags, test_size=0.3, random_state=42)
+np.save('X_train',X_train)
+np.save('X_test',X_test)
+np.save('y_train',y_train)
+np.save('y_test',y_test)
